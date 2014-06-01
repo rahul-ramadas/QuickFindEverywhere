@@ -1,7 +1,7 @@
 import sublime_plugin
 
 
-class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
+class QuickFindEverywhereCommand(sublime_plugin.WindowCommand):
 
-    def run(self, edit):
+    def run(self):
         pass
