@@ -1,16 +1,40 @@
+import sublime
 import sublime_plugin
 
 
-class QuickFindEverywhereCommand(sublime_plugin.WindowCommand):
+class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
-    def run(self):
+    def run(self, edit):
         search_term_region, is_word = self.extract_search_term()
         if search_term_region is None:
             return
 
-        view = self.window.active_view()
+        self.find_next(search_term_region, is_word)
+
+    def region_is_word(self, region):
+        word_region = self.view.word(region)
+        if word_region.begin() == region.begin() and word_region.end() == region.end():
+            return True
+        return False
+
+    def find_next(self, search_term_region, is_word):
+        view = self.view
         search_term = view.substr(search_term_region)
-        print(search_term)
+
+        current_pos = search_term_region.end()
+        while True:
+            result_region = view.find(search_term, current_pos, sublime.LITERAL)
+            if result_region.empty() or result_region.a == -1 or result_region.b == -1:
+                return
+
+            if not is_word or self.region_is_word(result_region):
+                break
+
+            current_pos = result_region.end()
+
+        view.sel().clear()
+        view.sel().add(result_region)
+        view.show(result_region)
 
     def extract_search_term(self):
         '''
@@ -22,7 +46,7 @@ class QuickFindEverywhereCommand(sublime_plugin.WindowCommand):
         Returns (None, None) if a search term could not be extracted.
         '''
 
-        view = self.window.active_view()
+        view = self.view
         sels = view.sel()
         if len(sels) != 1:
             return (None, None)
@@ -35,4 +59,4 @@ class QuickFindEverywhereCommand(sublime_plugin.WindowCommand):
             word_region = view.word(sel)
             return (word_region, True)
         else:
-            return (sel, False)
+            return (sel, self.region_is_word(sel))
