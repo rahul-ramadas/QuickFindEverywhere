@@ -4,18 +4,24 @@ import sublime_plugin
 
 class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
-    def run(self, edit):
+    def run(self, edit, forward=True):
         search_term_region, is_word = self.extract_search_term()
         if search_term_region is None:
             return
 
-        self.find_next(search_term_region, is_word)
+        if forward:
+            self.find_next(search_term_region, is_word)
+        else:
+            self.find_prev(search_term_region, is_word)
 
     def region_is_word(self, region):
         word_region = self.view.word(region)
         if word_region.begin() == region.begin() and word_region.end() == region.end():
             return True
         return False
+
+    def find_prev(self, search_term_region, is_word):
+        pass
 
     def find_next(self, search_term_region, is_word):
         view = self.view
