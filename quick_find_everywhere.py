@@ -21,7 +21,44 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         return False
 
     def find_prev(self, search_term_region, is_word):
-        pass
+        view = self.view
+        current_line = view.line(search_term_region.begin())
+        must_be_before = search_term_region.begin()
+        search_term = view.substr(search_term_region)
+
+        def find_last_in_line(current_line, must_be_before):
+            current_region = None
+            from_position = current_line.begin()
+            while True:
+                next_region = view.find(search_term, from_position, sublime.LITERAL)
+
+                if next_region.empty() or next_region.a == -1 or next_region.b == -1:
+                    break
+
+                if next_region.end() <= must_be_before:
+                    if not is_word or self.region_is_word(next_region):
+                        current_region = next_region
+                    from_position = next_region.end()
+                else:
+                    break
+
+            return current_region
+
+        while True:
+            result_region = find_last_in_line(current_line, must_be_before)
+            if result_region is not None:
+                break
+            if current_line.begin() == 0:
+                break
+            current_line = view.line(current_line.begin() - 1)
+            must_be_before = current_line.end()
+
+        if result_region is None:
+            return
+
+        view.sel().clear()
+        view.sel().add(result_region)
+        view.show(result_region)
 
     def find_next(self, search_term_region, is_word):
         view = self.view
