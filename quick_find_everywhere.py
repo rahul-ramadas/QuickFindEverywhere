@@ -9,9 +9,15 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         if search_term_region is None:
             return
 
+        # If nothing was selected, select the search term to give some visual
+        # feedback, particularly for the case where the search doesn't find anything.
+
+        if self.view.sel()[0].empty():
+            self.view.sel().clear()
+            self.view.sel().add(search_term_region)
+
         views = self.view.window().views()
         this_view_index, _ = next((i, v) for (i, v) in enumerate(views) if v.id() == self.view.id())
-        print(this_view_index)
 
         from_pos = search_term_region.end() if forward else search_term_region.begin()
         search_term = self.view.substr(search_term_region)
@@ -20,6 +26,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             view_index_iter = range(this_view_index, len(views))
         else:
             view_index_iter = range(this_view_index, -1, -1)
+
         for i in view_index_iter:
             if not is_current_view:
                 from_pos = 0 if forward else views[i].size()
@@ -44,7 +51,15 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         current_line = view.line(from_pos)
         must_be_before = from_pos
 
+        # Search each line, starting with the current one, and going backward.
+        # Sublime API currently does not give us a way to search backwards.
+
         def find_last_in_line(current_line, must_be_before):
+            '''
+            Finds the last instance of the search term that appears before
+            the given position
+            '''
+
             current_region = None
             from_position = current_line.begin()
             while True:
@@ -52,6 +67,9 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
                 if next_region.empty() or next_region.a == -1 or next_region.b == -1:
                     break
+
+                # We found an instance, but is it the last one? Try the search again
+                # from that point onwards.
 
                 if next_region.end() <= must_be_before:
                     if not is_word or self.region_is_word(view, next_region):
@@ -85,9 +103,12 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         current_pos = from_pos
         while True:
             result_region = view.find(search_term, current_pos, sublime.LITERAL)
+
             if result_region.empty() or result_region.a == -1 or result_region.b == -1:
+                # Couldn't find anything.
                 return
 
+            # If we are searching for a word, make sure this occurence is one.
             if not is_word or self.region_is_word(view, result_region):
                 break
 
@@ -110,15 +131,22 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
         view = self.view
         sels = view.sel()
+
+        # Don't know what to do with multiple selections.
         if len(sels) != 1:
             return (None, None)
 
         sel = sels[0]
+
+        # Occasionally, there are these bogus selections.
         if sel.a == -1 or sel.b == -1:
             return (None, None)
 
         if sel.empty():
+            # Select the word under the cursor.
             word_region = view.word(sel)
             return (word_region, True)
         else:
+            # Something is already selected. That is probably what we need
+            # to search for.
             return (sel, self.region_is_word(view, sel))
