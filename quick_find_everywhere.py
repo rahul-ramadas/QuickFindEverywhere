@@ -9,22 +9,40 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         if search_term_region is None:
             return
 
-        if forward:
-            self.find_next(search_term_region, is_word)
-        else:
-            self.find_prev(search_term_region, is_word)
+        views = self.view.window().views()
+        this_view_index, _ = next((i, v) for (i, v) in enumerate(views) if v.id() == self.view.id())
+        print(this_view_index)
 
-    def region_is_word(self, region):
-        word_region = self.view.word(region)
+        from_pos = search_term_region.end() if forward else search_term_region.begin()
+        search_term = self.view.substr(search_term_region)
+        is_current_view = True
+        if forward:
+            view_index_iter = range(this_view_index, len(views))
+        else:
+            view_index_iter = range(this_view_index, -1, -1)
+        for i in view_index_iter:
+            if not is_current_view:
+                from_pos = 0 if forward else views[i].size()
+            if forward:
+                found_region = self.find_next(views[i], from_pos, search_term, is_word)
+            else:
+                found_region = self.find_prev(views[i], from_pos, search_term, is_word)
+            if found_region is not None:
+                self.view.window().focus_view(views[i])
+                return
+            is_current_view = False
+
+    def region_is_word(self, in_view, region):
+        view = in_view
+        word_region = view.word(region)
         if word_region.begin() == region.begin() and word_region.end() == region.end():
             return True
         return False
 
-    def find_prev(self, search_term_region, is_word):
-        view = self.view
-        current_line = view.line(search_term_region.begin())
-        must_be_before = search_term_region.begin()
-        search_term = view.substr(search_term_region)
+    def find_prev(self, in_view, from_pos, search_term, is_word):
+        view = in_view
+        current_line = view.line(from_pos)
+        must_be_before = from_pos
 
         def find_last_in_line(current_line, must_be_before):
             current_region = None
@@ -36,7 +54,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
                     break
 
                 if next_region.end() <= must_be_before:
-                    if not is_word or self.region_is_word(next_region):
+                    if not is_word or self.region_is_word(view, next_region):
                         current_region = next_region
                     from_position = next_region.end()
                 else:
@@ -59,18 +77,18 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         view.sel().clear()
         view.sel().add(result_region)
         view.show(result_region)
+        return result_region
 
-    def find_next(self, search_term_region, is_word):
-        view = self.view
-        search_term = view.substr(search_term_region)
+    def find_next(self, in_view, from_pos, search_term, is_word):
+        view = in_view
 
-        current_pos = search_term_region.end()
+        current_pos = from_pos
         while True:
             result_region = view.find(search_term, current_pos, sublime.LITERAL)
             if result_region.empty() or result_region.a == -1 or result_region.b == -1:
                 return
 
-            if not is_word or self.region_is_word(result_region):
+            if not is_word or self.region_is_word(view, result_region):
                 break
 
             current_pos = result_region.end()
@@ -78,6 +96,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         view.sel().clear()
         view.sel().add(result_region)
         view.show(result_region)
+        return result_region
 
     def extract_search_term(self):
         '''
@@ -102,4 +121,4 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             word_region = view.word(sel)
             return (word_region, True)
         else:
-            return (sel, self.region_is_word(sel))
+            return (sel, self.region_is_word(view, sel))
