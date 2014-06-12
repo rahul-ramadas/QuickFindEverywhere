@@ -48,49 +48,50 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
     def find_prev(self, in_view, from_pos, search_term, is_word):
         view = in_view
-        current_line = view.line(from_pos)
-        must_be_before = from_pos
+        result_region = None
 
-        # Search each line, starting with the current one, and going backward.
-        # Sublime API currently does not give us a way to search backwards.
+        # Since Sublime does not offer an API to perform a text search
+        # backwards, we need to get creative.
+        # Do a binary search for the search term.
 
-        def find_last_in_line(current_line, must_be_before):
+        def is_in_range(begin, end):
             '''
-            Finds the last instance of the search term that appears before
-            the given position
+            Check if the word exists in this range and return the
+            first region.
             '''
+            region = view.find(search_term, begin, sublime.LITERAL)
+            if region.empty() or region.a == -1 or region.b == -1:
+                return None
+            if region.end() > end:
+                return None
+            if is_word and not self.region_is_word(view, region):
+                return None
+            return region
 
-            current_region = None
-            from_position = current_line.begin()
-            while True:
-                next_region = view.find(search_term, from_position, sublime.LITERAL)
+        def find_mid_point(begin, end):
+            '''
+            Find the middle point for the binary search. Round up to the
+            next word boundary.
+            '''
+            middle = (begin + end) // 2
+            middle = view.find_by_class(middle, True, sublime.CLASS_WORD_END)
+            return middle
 
-                if next_region.empty() or next_region.a == -1 or next_region.b == -1:
-                    break
-
-                # We found an instance, but is it the last one? Try the search again
-                # from that point onwards.
-
-                if next_region.end() <= must_be_before:
-                    if not is_word or self.region_is_word(view, next_region):
-                        current_region = next_region
-                    from_position = next_region.end()
-                else:
-                    break
-
-            return current_region
-
-        while True:
-            result_region = find_last_in_line(current_line, must_be_before)
-            if result_region is not None:
-                break
-            if current_line.begin() == 0:
-                break
-            current_line = view.line(current_line.begin() - 1)
-            must_be_before = current_line.end()
-
+        lower = 0
+        upper = from_pos
+        result_region = is_in_range(lower, upper)
         if result_region is None:
             return
+
+        middle = find_mid_point(lower, upper)
+        while middle > lower and middle < upper:
+            region = is_in_range(middle, upper)
+            if region is not None:
+                result_region = region
+                lower = middle
+            else:
+                upper = middle
+            middle = find_mid_point(lower, upper)
 
         view.sel().clear()
         view.sel().add(result_region)
