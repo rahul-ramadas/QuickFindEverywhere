@@ -20,7 +20,11 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         this_view_index, _ = next((i, v) for (i, v) in enumerate(views) if v.id() == self.view.id())
 
         from_pos = search_term_region.end() if forward else search_term_region.begin()
+
         search_term = self.view.substr(search_term_region)
+        if is_word:
+            search_term = '\\b' + search_term + '\\b'
+
         is_current_view = True
         if forward:
             view_index_iter = range(this_view_index, len(views))
@@ -59,12 +63,10 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             Check if the word exists in this range and return the
             first region.
             '''
-            region = view.find(search_term, begin, sublime.LITERAL)
+            region = view.find(search_term, begin)
             if region.empty() or region.a == -1 or region.b == -1:
                 return None
             if region.end() > end:
-                return None
-            if is_word and not self.region_is_word(view, region):
                 return None
             return region
 
@@ -102,18 +104,10 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         view = in_view
 
         current_pos = from_pos
-        while True:
-            result_region = view.find(search_term, current_pos, sublime.LITERAL)
+        result_region = view.find(search_term, current_pos)
 
-            if result_region.empty() or result_region.a == -1 or result_region.b == -1:
-                # Couldn't find anything.
-                return
-
-            # If we are searching for a word, make sure this occurence is one.
-            if not is_word or self.region_is_word(view, result_region):
-                break
-
-            current_pos = result_region.end()
+        if result_region.empty() or result_region.a == -1 or result_region.b == -1:
+            return
 
         view.sel().clear()
         view.sel().add(result_region)
