@@ -72,11 +72,25 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
         def find_mid_point(begin, end):
             '''
-            Find the middle point for the binary search. Round up to the
-            next word boundary.
+            Find the middle point for the binary search. If the point is in between
+            an instance of the text we are searching for, move it to the end of that
+            instance.
             '''
             middle = (begin + end) // 2
-            middle = view.find_by_class(middle, True, sublime.CLASS_WORD_END)
+
+            # If it is a word, strip out the word boundary indicators we added
+            # earlier.
+
+            search_text = search_term if not is_word else search_term[2:-2]
+
+            for suffix_len in range(1, len(search_text)):
+                suffix = view.substr(sublime.Region(middle, middle + suffix_len))
+                rem_len = len(search_text) - suffix_len
+                prefix = view.substr(sublime.Region(middle - rem_len, middle))
+                if prefix + suffix == search_text:
+                    middle += suffix_len
+                    break
+
             return middle
 
         lower = 0
@@ -86,7 +100,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             return
 
         middle = find_mid_point(lower, upper)
-        while middle > lower and middle < upper:
+        while upper > middle > lower:
             region = is_in_range(middle, upper)
             if region is not None:
                 result_region = region
