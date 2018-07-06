@@ -63,7 +63,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             Check if the word exists in this range and return the
             first region.
             '''
-            region = view.find(search_term, begin)
+            region = view.find(search_term, begin, sublime.LITERAL)
             if region.empty() or region.a == -1 or region.b == -1:
                 return None
             if region.end() > end:
@@ -118,7 +118,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         view = in_view
 
         current_pos = from_pos
-        result_region = view.find(search_term, current_pos)
+        result_region = view.find(search_term, current_pos, sublime.LITERAL)
 
         if result_region.empty() or result_region.a == -1 or result_region.b == -1:
             return
