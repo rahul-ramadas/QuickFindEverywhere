@@ -1,3 +1,4 @@
+import re
 import sublime
 import sublime_plugin
 
@@ -6,6 +7,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, forward=True):
         search_term_region, is_word = self.extract_search_term()
+        # print("Searching for - region: \'{}\', is_word: {}".format(search_term_region, is_word))
         if search_term_region is None:
             return
 
@@ -21,9 +23,11 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
         from_pos = search_term_region.end() if forward else search_term_region.begin()
 
-        search_term = self.view.substr(search_term_region)
+        search_term = re.escape(self.view.substr(search_term_region))
         if is_word:
             search_term = '\\b' + search_term + '\\b'
+
+        # print("Search term - \'{}\'".format(search_term))
 
         is_current_view = True
         if forward:
@@ -63,7 +67,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             Check if the word exists in this range and return the
             first region.
             '''
-            region = view.find(search_term, begin, sublime.LITERAL)
+            region = view.find(search_term, begin)
             if region.empty() or region.a == -1 or region.b == -1:
                 return None
             if region.end() > end:
@@ -118,7 +122,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         view = in_view
 
         current_pos = from_pos
-        result_region = view.find(search_term, current_pos, sublime.LITERAL)
+        result_region = view.find(search_term, current_pos)
 
         if result_region.empty() or result_region.a == -1 or result_region.b == -1:
             return
