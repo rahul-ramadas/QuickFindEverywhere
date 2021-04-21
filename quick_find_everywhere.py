@@ -5,7 +5,7 @@ import sublime_plugin
 
 class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
 
-    def run(self, edit, forward=True):
+    def run(self, edit, forward=True, case_sensitive=False):
         search_term_region, is_word = self.extract_search_term()
         # print("Searching for - region: \'{}\', is_word: {}".format(search_term_region, is_word))
         if search_term_region is None:
@@ -39,9 +39,9 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             if not is_current_view:
                 from_pos = 0 if forward else views[i].size()
             if forward:
-                found_region = self.find_next(views[i], from_pos, search_term, is_word)
+                found_region = self.find_next(views[i], from_pos, search_term, is_word, case_sensitive)
             else:
-                found_region = self.find_prev(views[i], from_pos, search_term, is_word)
+                found_region = self.find_prev(views[i], from_pos, search_term, is_word, case_sensitive)
             if found_region is not None:
                 self.view.window().focus_view(views[i])
                 return
@@ -54,7 +54,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             return True
         return False
 
-    def find_prev(self, in_view, from_pos, search_term, is_word):
+    def find_prev(self, in_view, from_pos, search_term, is_word, case_sensitive):
         view = in_view
         result_region = None
 
@@ -67,7 +67,7 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
             Check if the word exists in this range and return the
             first region.
             '''
-            region = view.find(search_term, begin)
+            region = view.find(search_term, begin, 0 if case_sensitive else sublime.IGNORECASE)
             if region.empty() or region.a == -1 or region.b == -1:
                 return None
             if region.end() > end:
@@ -118,11 +118,11 @@ class QuickFindEverywhereCommand(sublime_plugin.TextCommand):
         view.show(result_region)
         return result_region
 
-    def find_next(self, in_view, from_pos, search_term, is_word):
+    def find_next(self, in_view, from_pos, search_term, is_word, case_sensitive):
         view = in_view
 
         current_pos = from_pos
-        result_region = view.find(search_term, current_pos)
+        result_region = view.find(search_term, current_pos, 0 if case_sensitive else sublime.IGNORECASE)
 
         if result_region.empty() or result_region.a == -1 or result_region.b == -1:
             return
